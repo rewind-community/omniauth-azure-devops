@@ -7,40 +7,40 @@ jobs:
     name: rspec tests
     runs-on: ubuntu-latest
     steps:
-    - name: Check out code
-      uses: actions/checkout@v4
+      - name: Check out code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-    - name: Install Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: 3.4.5
-        bundler-cache: true
+      - name: Install Ruby
+        uses: ruby/setup-ruby@319994f95fa847cf3fb3cd3dbe89f6dcde9f178f # v1
+        with:
+          ruby-version: 3.4.5
+          bundler-cache: true
 
-    - name: Run rspec tests
-      run: |
-        bundle exec rspec
+      - name: Run rspec tests
+        run: |
+          bundle exec rspec
 
 
-    - name: Upload coverage results
-      uses: actions/upload-artifact@v4
-      with:
-        include-hidden-files: 'true'
-        name: coverage-results
-        path: coverage
-        retention-days: 5
+      - name: Upload coverage results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          include-hidden-files: 'true'
+          name: coverage-results
+          path: coverage
+          retention-days: 5
   coverage:
     needs: rspec
     runs-on: ubuntu-latest
     steps:
-    - name: Download coverage results
-      uses: actions/download-artifact@v4
-      with:
-        name: coverage-results
-        path: coverage
+      - name: Download coverage results
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: coverage-results
+          path: coverage
 
-    - name: Simplecov Report
-      uses: aki77/simplecov-report-action@7fd5fa551dd583dd437a11c640b2a1cf23d6cdaa   # v1.5.2
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        failedThreshold: 100
-        resultPath: coverage/.last_run.json
+      - name: Simplecov Report
+        uses: aki77/simplecov-report-action@7fd5fa551dd583dd437a11c640b2a1cf23d6cdaa # v1.5.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          failedThreshold: 100
+          resultPath: coverage/.last_run.json

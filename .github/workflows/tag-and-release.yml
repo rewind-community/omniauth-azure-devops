@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98 # main
 
       - name: Set up Ruby 3.4.5
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@319994f95fa847cf3fb3cd3dbe89f6dcde9f178f # v1
         with:
           ruby-version: 3.4.5
 
@@ -41,12 +41,12 @@ jobs:
           touch ~/.gem/credentials
           chmod 600 ~/.gem/credentials
           echo ":rubygems_api_key: ${RUBYGEMS_API_KEY}" >> ~/.gem/credentials
-          
+
           gemspec=$(ls *gemspec* | head -1)
           gem build $gemspec
           gem_name=$(ls -t *.gem | head -1)
           output=$(gem push *.gem)
-          
+
           if [[ $output != *"Successfully"* ]]; then
             echo "Error uploading to Rubygems: $output"
             rm -f ~/.gem/credentials
