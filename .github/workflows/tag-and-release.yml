@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98 # main
 
       - name: Set up Ruby 3.4.5
-        uses: ruby/setup-ruby@319994f95fa847cf3fb3cd3dbe89f6dcde9f178f # v1
+        uses: ruby/setup-ruby@afeafc3d1ab54a631816aba4c914a0081c12ff2f # v1
         with:
           ruby-version: 3.4.5
 
@@ -63,7 +63,7 @@ jobs:
           VERSION=${{steps.get_version.outputs.version}}; awk "/## \[$VERSION\]/{flag=1;next}/## \[/{flag=0}flag" CHANGELOG.md > REL-BODY.md
 
       - name: Create Release
-        uses: ncipollo/release-action@6c75be85e571768fa31b40abf38de58ba0397db5 # v1.13.0
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
           tag: ${{steps.get_version.outputs.version_tag}}
           artifacts: "*.gem, CHANGELOG.md"
