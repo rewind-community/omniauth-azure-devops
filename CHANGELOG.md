@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.6]
+
+- Resolve CVE-2026-54603 by updating oauth2 to 2.0.25
+
 ## [1.0.5]
 
 - Update Ruby version to 3.4.5 to address security vulnerabilities
