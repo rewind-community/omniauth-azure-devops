@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.7]
+
+- Fix the `tag-and-release` workflow to create the release tag with the `rewind-community-tagger` GitHub App token (`TAGGER_APP_ID`/`TAGGER_PRIVATE_KEY`) instead of the default `GITHUB_TOKEN`
+
 ## [1.0.6]
 
 - Resolve CVE-2026-54603 by updating oauth2 to 2.0.25
