@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.0]
+
+- Add the `azure_devops_entra` strategy: Microsoft Entra ID authorization code + PKCE with a certificate-signed client assertion, alongside the unchanged legacy `azure_devops` strategy
+- Require `omniauth-oauth2` `~> 1.7` (PKCE) and `oauth2` `~> 2.0` (`private_key_jwt` client auth and snake_cased responses), and declare the `jwt` dependency
+
 ## [1.0.8]
 
 - Address Dependabot security advisories in transitive dependencies by updating `Gemfile.lock`:

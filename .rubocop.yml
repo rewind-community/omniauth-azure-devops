@@ -46,6 +46,9 @@ Metrics/PerceivedComplexity:
   Enabled: false
 
 # Naming cop configuration
+Naming/FileName:
+  Exclude:
+    - lib/omniauth-azure-devops.rb
 Naming/MethodParameterName:
   Enabled: true
   Exclude:

@@ -28,6 +28,8 @@ Gem::Specification.new do |gem|
 
   gem.required_ruby_version = '>= 3.4'
 
+  gem.add_dependency 'jwt', '>= 2.10', '< 4'
+  gem.add_dependency 'oauth2', '~> 2.0'
   gem.add_dependency 'omniauth', '>= 1', '< 3'
-  gem.add_dependency 'omniauth-oauth2', '~> 1.1'
+  gem.add_dependency 'omniauth-oauth2', '~> 1.7'
 end
