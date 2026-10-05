@@ -102,6 +102,8 @@ describe OmniAuth::Strategies::AzureDevopsEntra do
     let(:strategy) { described_class.new(nil, client_id, 'configured-secret', strategy_options) }
     let(:stubs) { Faraday::Adapter::Test::Stubs.new }
     let(:token_request) { {} }
+    let(:graph_token_request) { {} }
+    let(:graph_url) { 'https://graph.microsoft.com/v1.0/organization' }
     let(:token_response) do
       { access_token: JWT.encode({ 'tid' => 'tenant-guid' }, nil, 'none'), refresh_token: 'refresh-1', expires_in: 5219, token_type: 'Bearer' }
     end
@@ -115,9 +117,12 @@ describe OmniAuth::Strategies::AzureDevopsEntra do
         end
       end
       stubs.post(token_url) do |env|
-        token_request[:headers] = env.request_headers
-        token_request[:body] = URI.decode_www_form(env.body).to_h
-        [200, { 'Content-Type' => 'application/json' }, JSON.generate(token_response)]
+        body = URI.decode_www_form(env.body).to_h
+        recorded = body['grant_type'] == 'refresh_token' ? graph_token_request : token_request
+        recorded[:headers] = env.request_headers
+        recorded[:body] = body
+        response = body['grant_type'] == 'refresh_token' ? { access_token: 'graph-token', token_type: 'Bearer', expires_in: 3600 } : token_response
+        [200, { 'Content-Type' => 'application/json' }, JSON.generate(response)]
       end
       strategy.authorize_params
       strategy.access_token = strategy.send(:build_access_token)
@@ -137,6 +142,29 @@ describe OmniAuth::Strategies::AzureDevopsEntra do
 
     it 'returns the refresh token in the credentials' do
       expect(strategy.credentials['refresh_token']).to eq('refresh-1')
+    end
+
+    it 'reads the tenant name from Microsoft Graph' do
+      stubs.get(graph_url) { [200, { 'Content-Type' => 'application/json' }, JSON.generate(value: [{ displayName: 'Contoso Ltd' }])] }
+
+      expect(strategy.tenant_name).to eq('Contoso Ltd')
+    end
+
+    it 'redeems the refresh token for a User.Read token with the client assertion' do
+      stubs.get(graph_url) { [200, { 'Content-Type' => 'application/json' }, JSON.generate(value: [{ displayName: 'Contoso Ltd' }])] }
+      strategy.tenant_name
+
+      expect(graph_token_request[:body]).to include('grant_type' => 'refresh_token', 'refresh_token' => 'refresh-1', 'client_id' => client_id,
+                                                    'scope' => 'https://graph.microsoft.com/User.Read')
+      expect(graph_token_request[:body]).not_to have_key('client_secret')
+      expect(graph_token_request[:headers]).not_to have_key('Authorization')
+      expect(decode_assertion(graph_token_request[:body]['client_assertion']).first).to include('iss' => client_id)
+    end
+
+    it 'has no tenant name when Microsoft Graph refuses' do
+      stubs.get(graph_url) { [403, { 'Content-Type' => 'application/json' }, JSON.generate(error: { code: 'Authorization_RequestDenied' })] }
+
+      expect(strategy.tenant_name).to be_nil
     end
   end
 
@@ -175,7 +203,7 @@ describe OmniAuth::Strategies::AzureDevopsEntra do
     let(:raw_info) { { 'id' => '123' } }
 
     before do
-      allow(strategy).to receive_messages(raw_info: raw_info, tenant_id: 'tenant-guid')
+      allow(strategy).to receive_messages(raw_info: raw_info, tenant_id: 'tenant-guid', tenant_name: 'Contoso Ltd')
     end
 
     it 'includes the raw_info' do
@@ -184,6 +212,10 @@ describe OmniAuth::Strategies::AzureDevopsEntra do
 
     it 'includes the tenant id' do
       expect(strategy.extra[:tenant_id]).to eq('tenant-guid')
+    end
+
+    it 'includes the tenant name' do
+      expect(strategy.extra[:tenant_name]).to eq('Contoso Ltd')
     end
   end
 

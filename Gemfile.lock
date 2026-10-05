@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    omniauth-azure-devops (1.1.0)
+    omniauth-azure-devops (1.2.0)
       jwt (>= 2.10, < 4)
       oauth2 (~> 2.0)
       omniauth (>= 1, < 3)
