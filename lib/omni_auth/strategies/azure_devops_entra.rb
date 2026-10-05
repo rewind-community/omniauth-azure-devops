@@ -62,7 +62,9 @@ module OmniAuth
         return @tenant_name if defined?(@tenant_name)
 
         @tenant_name = JSON.parse(graph_access_token.get(GRAPH_ORGANIZATION_URL).body).dig('value', 0, 'displayName')
-      rescue StandardError
+      rescue StandardError => e
+        status = e.response&.status if e.is_a?(::OAuth2::Error)
+        log :warn, "Could not read the Entra tenant name for tenant #{tenant_id}: #{e.class} (status #{status.inspect}): #{e.message}"
         @tenant_name = nil
       end
 

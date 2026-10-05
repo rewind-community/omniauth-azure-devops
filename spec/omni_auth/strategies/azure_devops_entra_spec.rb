@@ -166,6 +166,15 @@ describe OmniAuth::Strategies::AzureDevopsEntra do
 
       expect(strategy.tenant_name).to be_nil
     end
+
+    it 'logs why the tenant name is missing' do
+      stubs.get(graph_url) { [403, { 'Content-Type' => 'application/json' }, JSON.generate(error: { code: 'Authorization_RequestDenied' })] }
+      allow(OmniAuth.logger).to receive(:warn)
+
+      strategy.tenant_name
+
+      expect(OmniAuth.logger).to have_received(:warn).with(a_string_including('tenant-guid', 'OAuth2::Error', 'status 403'))
+    end
   end
 
   describe '#uid' do
