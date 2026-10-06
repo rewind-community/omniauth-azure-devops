@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'json'
 require 'jwt'
 require 'openssl'
 require 'securerandom'
@@ -11,6 +12,8 @@ module OmniAuth
       TOKEN_URL = 'https://login.microsoftonline.com/organizations/oauth2/v2.0/token'
       CLIENT_ASSERTION_TYPE = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
       CLIENT_ASSERTION_LIFETIME_SECONDS = 120
+      GRAPH_SCOPE = 'https://graph.microsoft.com/User.Read'
+      GRAPH_ORGANIZATION_URL = 'https://graph.microsoft.com/v1.0/organization'
 
       option :name, :azure_devops_entra
       option :pkce, true
@@ -42,7 +45,8 @@ module OmniAuth
       extra do
         {
           raw_info: raw_info,
-          tenant_id: tenant_id
+          tenant_id: tenant_id,
+          tenant_name: tenant_name
         }
       end
 
@@ -52,6 +56,16 @@ module OmniAuth
 
       def tenant_id
         @tenant_id ||= JWT.decode(access_token.token, nil, false).first['tid']
+      end
+
+      def tenant_name
+        return @tenant_name if defined?(@tenant_name)
+
+        @tenant_name = JSON.parse(graph_access_token.get(GRAPH_ORGANIZATION_URL).body).dig('value', 0, 'displayName')
+      rescue StandardError => e
+        status = e.response&.status if e.is_a?(::OAuth2::Error)
+        log :warn, "Could not read the Entra tenant name for tenant #{tenant_id}: #{e.class} (status #{status.inspect}): #{e.message}"
+        @tenant_name = nil
       end
 
       def token_params
@@ -67,6 +81,17 @@ module OmniAuth
       end
 
       private
+
+      def graph_access_token
+        client.get_token(
+          grant_type: 'refresh_token',
+          refresh_token: access_token.refresh_token,
+          scope: GRAPH_SCOPE,
+          client_id: client.id,
+          client_assertion_type: CLIENT_ASSERTION_TYPE,
+          client_assertion: client_assertion
+        )
+      end
 
       def client_assertion
         now = Time.now.to_i

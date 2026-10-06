@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.0]
+
+- Add `extra.tenant_name` to the `azure_devops_entra` strategy: the Microsoft Entra tenant's display name, read from Microsoft Graph `/organization` with a `User.Read` token redeemed from the sign-in's refresh token. It is `nil` when Graph can't be reached or `User.Read` isn't consented, and never fails the sign-in.
+
 ## [1.1.0]
 
 - Add the `azure_devops_entra` strategy: Microsoft Entra ID authorization code + PKCE with a certificate-signed client assertion, alongside the unchanged legacy `azure_devops` strategy
