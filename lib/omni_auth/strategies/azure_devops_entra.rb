@@ -14,6 +14,7 @@ module OmniAuth
       CLIENT_ASSERTION_LIFETIME_SECONDS = 120
       GRAPH_SCOPE = 'https://graph.microsoft.com/User.Read'
       GRAPH_ORGANIZATION_URL = 'https://graph.microsoft.com/v1.0/organization'
+      TENANT_NAME_RETRY_DELAYS = [1, 2, 4].freeze
 
       option :name, :azure_devops_entra
       option :pkce, true
@@ -58,14 +59,26 @@ module OmniAuth
         @tenant_id ||= JWT.decode(access_token.token, nil, false).first['tid']
       end
 
+      # Consent granted during this sign-in can take a few seconds to reach the Graph token exchange, which Entra refuses
+      # meanwhile with AADSTS65001 consent_required, so failed lookups are retried after a short wait.
       def tenant_name
         return @tenant_name if defined?(@tenant_name)
 
-        @tenant_name = JSON.parse(graph_access_token.get(GRAPH_ORGANIZATION_URL).body).dig('value', 0, 'displayName')
-      rescue StandardError => e
-        status = e.response&.status if e.is_a?(::OAuth2::Error)
-        log :warn, "Could not read the Entra tenant name for tenant #{tenant_id}: #{e.class} (status #{status.inspect}): #{e.message}"
-        @tenant_name = nil
+        attempts = TENANT_NAME_RETRY_DELAYS.size + 1
+        attempt = 0
+        begin
+          attempt += 1
+          @tenant_name = JSON.parse(graph_access_token.get(GRAPH_ORGANIZATION_URL).body).dig('value', 0, 'displayName')
+        rescue StandardError => e
+          status = e.response&.status if e.is_a?(::OAuth2::Error)
+          log :warn, "Could not read the Entra tenant name for tenant #{tenant_id} (attempt #{attempt} of #{attempts}): " \
+                     "#{e.class} (status #{status.inspect}): #{e.message}"
+          if attempt < attempts
+            sleep TENANT_NAME_RETRY_DELAYS[attempt - 1]
+            retry
+          end
+          @tenant_name = nil
+        end
       end
 
       def token_params

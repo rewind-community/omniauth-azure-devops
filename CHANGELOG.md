@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.1]
+
+- Retry the `azure_devops_entra` tenant name lookup up to three times, waiting 1, 2 and 4 seconds. Consent granted during the sign-in can take a few seconds to reach the Graph token exchange, which Entra refuses meanwhile with `AADSTS65001` `consent_required`, so `extra.tenant_name` came back `nil` for a user who had just consented. Each failed attempt is logged with its attempt number.
+
 ## [1.2.0]
 
 - Add `extra.tenant_name` to the `azure_devops_entra` strategy: the Microsoft Entra tenant's display name, read from Microsoft Graph `/organization` with a `User.Read` token redeemed from the sign-in's refresh token. It is `nil` when Graph can't be reached or `User.Read` isn't consented, and never fails the sign-in.
