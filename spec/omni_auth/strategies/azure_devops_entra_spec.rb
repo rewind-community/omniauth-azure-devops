@@ -103,7 +103,9 @@ describe OmniAuth::Strategies::AzureDevopsEntra do
     let(:stubs) { Faraday::Adapter::Test::Stubs.new }
     let(:token_request) { {} }
     let(:graph_token_request) { {} }
+    let(:graph_token_errors) { [] }
     let(:graph_url) { 'https://graph.microsoft.com/v1.0/organization' }
+    let(:sleeps) { [] }
     let(:token_response) do
       { access_token: JWT.encode({ 'tid' => 'tenant-guid' }, nil, 'none'), refresh_token: 'refresh-1', expires_in: 5219, token_type: 'Bearer' }
     end
@@ -121,9 +123,13 @@ describe OmniAuth::Strategies::AzureDevopsEntra do
         recorded = body['grant_type'] == 'refresh_token' ? graph_token_request : token_request
         recorded[:headers] = env.request_headers
         recorded[:body] = body
+        error = graph_token_errors.shift if body['grant_type'] == 'refresh_token'
+        next [400, { 'Content-Type' => 'application/json' }, JSON.generate(error)] if error
+
         response = body['grant_type'] == 'refresh_token' ? { access_token: 'graph-token', token_type: 'Bearer', expires_in: 3600 } : token_response
         [200, { 'Content-Type' => 'application/json' }, JSON.generate(response)]
       end
+      allow(strategy).to receive(:sleep) { |seconds| sleeps << seconds }
       strategy.authorize_params
       strategy.access_token = strategy.send(:build_access_token)
     end
@@ -167,13 +173,61 @@ describe OmniAuth::Strategies::AzureDevopsEntra do
       expect(strategy.tenant_name).to be_nil
     end
 
-    it 'logs why the tenant name is missing' do
+    it 'logs why the tenant name is missing on each attempt' do
       stubs.get(graph_url) { [403, { 'Content-Type' => 'application/json' }, JSON.generate(error: { code: 'Authorization_RequestDenied' })] }
       allow(OmniAuth.logger).to receive(:warn)
 
       strategy.tenant_name
 
-      expect(OmniAuth.logger).to have_received(:warn).with(a_string_including('tenant-guid', 'OAuth2::Error', 'status 403'))
+      expect(OmniAuth.logger).to have_received(:warn).with(a_string_including('tenant-guid', 'attempt 1 of 4', 'OAuth2::Error', 'status 403'))
+      expect(OmniAuth.logger).to have_received(:warn).with(a_string_including('tenant-guid', 'attempt 4 of 4', 'OAuth2::Error', 'status 403'))
+    end
+
+    it 'gives up after three retries' do
+      graph_attempts = 0
+      stubs.get(graph_url) do
+        graph_attempts += 1
+        [403, { 'Content-Type' => 'application/json' }, JSON.generate(error: { code: 'Authorization_RequestDenied' })]
+      end
+
+      expect(strategy.tenant_name).to be_nil
+      expect(graph_attempts).to eq(4)
+    end
+
+    it 'waits longer before each retry' do
+      stubs.get(graph_url) { [403, { 'Content-Type' => 'application/json' }, JSON.generate(error: { code: 'Authorization_RequestDenied' })] }
+
+      strategy.tenant_name
+
+      expect(sleeps).to eq([1, 2, 4])
+    end
+
+    it 'retries when Microsoft Graph fails' do
+      stubs.get(graph_url) { [503, { 'Content-Type' => 'application/json' }, JSON.generate(error: { code: 'serviceNotAvailable' })] }
+      stubs.get(graph_url) { [200, { 'Content-Type' => 'application/json' }, JSON.generate(value: [{ displayName: 'Contoso Ltd' }])] }
+
+      expect(strategy.tenant_name).to eq('Contoso Ltd')
+    end
+
+    context 'when the consent from this sign-in has not reached the Graph token yet' do
+      let(:graph_token_errors) do
+        [{ error: 'invalid_grant', suberror: 'consent_required',
+           error_description: "AADSTS65001: The user or administrator has not consented to use the application with ID '#{client_id}'." }]
+      end
+
+      before do
+        stubs.get(graph_url) { [200, { 'Content-Type' => 'application/json' }, JSON.generate(value: [{ displayName: 'Contoso Ltd' }])] }
+      end
+
+      it 'redeems the refresh token again and reads the tenant name' do
+        expect(strategy.tenant_name).to eq('Contoso Ltd')
+      end
+
+      it 'waits a second before retrying' do
+        strategy.tenant_name
+
+        expect(sleeps).to eq([1])
+      end
     end
   end
 
