@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.2]
+
+- Address Dependabot security advisories in transitive dependencies by updating `Gemfile.lock`:
+  - `rack` 3.1.22 → 3.1.23 (GHSA-5v64-555j-wjxm, GHSA-p8x9-v4hv-2w4g, GHSA-2j8w-xcrc-x985, GHSA-wvg4-6p58-3gh3): fixes a multipart scan-buffer DoS, a quoted multipart boundary bypass, `Request#host_with_port` / `#base_url` / `#url` returning an invalid raw Host header, and a `Rack::Static` header_rules dot-segment bypass
+
 ## [1.2.1]
 
 - Retry the `azure_devops_entra` tenant name lookup up to three times, waiting 1, 2 and 4 seconds. Consent granted during the sign-in can take a few seconds to reach the Graph token exchange, which Entra refuses meanwhile with `AADSTS65001` `consent_required`, so `extra.tenant_name` came back `nil` for a user who had just consented. Each failed attempt is logged with its attempt number.
